@@ -1,3 +1,4 @@
+#include "renderer.hpp"
 #include "gl.hpp"
 #include <GLFW/glfw3.h>
 #include <algorithm>
@@ -5,34 +6,15 @@
 #include <stdexcept>
 
 static void run(GLFWwindow* window) {
-    GLuint program = makeProgram(R"(#version 330 core
-uniform vec2 scale;
-void main() {
-    vec2 p[3] = vec2[3](vec2(-.6,-.45),vec2(.6,-.45),vec2(0,.6));
-    gl_Position=vec4(p[gl_VertexID]*scale,0,1);
-})", R"(#version 330 core
-out vec4 color;
-void main(){color=vec4(.95,.6,.18,1);})");
-    GLuint vao;
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-    glUseProgram(program);
+    Renderer renderer;
+    Maze maze=fixedMaze();
     while (!glfwWindowShouldClose(window)) {
-        int w, h;
-        glfwGetFramebufferSize(window, &w, &h);
-        glViewport(0, 0, w, h);
-        if (w && h) {
-            float side = std::min(w, h);
-            glUniform2f(glGetUniformLocation(program,"scale"), side/w, side/h);
-            glClearColor(.06f,.10f,.14f,1);
-            glClear(GL_COLOR_BUFFER_BIT);
-            glDrawArrays(GL_TRIANGLES, 0, 3);
-        }
+        int w,h;
+        glfwGetFramebufferSize(window,&w,&h);
+        renderer.draw(maze,maze.start,identity(),w,h);
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-    glDeleteVertexArrays(1, &vao);
-    glDeleteProgram(program);
 }
 
 int main() {
