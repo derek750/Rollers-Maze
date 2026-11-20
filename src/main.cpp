@@ -46,7 +46,13 @@ static void run(GLFWwindow* window,std::uint32_t seed) {
         }
         resetHeld=reset;
         bool held=glfwGetMouseButton(window,GLFW_MOUSE_BUTTON_LEFT)==GLFW_PRESS;
-        if (held) started=true;
+        auto pressed=[&](int key) { return glfwGetKey(window,key)==GLFW_PRESS; };
+        int horizontal=pressed(GLFW_KEY_D)-pressed(GLFW_KEY_A);
+        int vertical=pressed(GLFW_KEY_S)-pressed(GLFW_KEY_W);
+        // A diagonal press has the same total tilt target as a single key.
+        float keyAngle=maxTilt/std::max(1.f,std::hypot(float(horizontal),float(vertical)));
+        Tilt keyTarget{vertical*keyAngle,-horizontal*keyAngle};
+        if (held || horizontal || vertical) started=true;
         if (held && !dragging) {
             originX=x; originY=y; anchor=tilt;
         }
@@ -57,8 +63,9 @@ static void run(GLFWwindow* window,std::uint32_t seed) {
         }
         clock.update(now-last,[&](float dt) {
             if (!held) {
-                tilt.pitch*=std::exp(-8*dt);
-                tilt.roll*=std::exp(-8*dt);
+                float blend=1.f-std::exp(-8*dt);
+                tilt.pitch+=(keyTarget.pitch-tilt.pitch)*blend;
+                tilt.roll+=(keyTarget.roll-tilt.roll)*blend;
             }
             if (exit.won) return;
             if (started) elapsed+=dt;
@@ -73,7 +80,7 @@ static void run(GLFWwindow* window,std::uint32_t seed) {
         });
         if (now>=nextTitle) {
             char title[180];
-            std::snprintf(title,sizeof(title),"Rollers Maze  |  %s%.1f s  |  Seed %u  |  Drag to tilt   R restart   N new",
+            std::snprintf(title,sizeof(title),"Rollers Maze  |  %s%.1f s  |  Seed %u  |  WASD or drag to tilt   R restart   N new",
                           exit.won ? "Escaped!  " : "",elapsed,seed);
             glfwSetWindowTitle(window,title);
             nextTitle=now+.1;
