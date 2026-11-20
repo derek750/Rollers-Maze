@@ -1,6 +1,6 @@
 # Rollers Maze
 
-Drag to lower one edge of the board and guide the striped marble onto the green landing. Each round has one route from the blue starting square to the exit. The seed in the title bar lets another player try the same layout.
+Use WASD or drag to lower one edge of the board and guide the striped marble onto the green landing. Each round has one route from the blue starting square to the exit. The seed in the title bar lets another player try the same layout.
 
 ![An 8 by 8 maze running on macOS, with the orange marble on its start square and a green landing at the far edge](docs/gameplay.jpg)
 
@@ -16,7 +16,7 @@ ctest --test-dir build --output-on-failure
 ./build/rollers --seed 42
 ```
 
-Omit `--seed 42` for a random first board. The camera stays fixed. Hold the left mouse button and drag toward the edge you want to lower. A drag of roughly 105 window points reaches the 15° limit. Release to ease the board back to level. The timer starts on the first press and freezes when the marble clears the opening. Press **R** to restart the same maze or **N** to generate another.
+Omit `--seed 42` for a random first board. The fixed perspective camera looks down from 14° off vertical. Hold **W/A/S/D** to lower the top, left, bottom, or right edge of the screen. Two adjacent keys tilt diagonally. Hold the left mouse button and drag toward the edge you want to lower. A drag of roughly 105 window points reaches the 15° limit. Mouse drag takes priority while held. Release all tilt inputs to ease the board back to level. The timer starts on the first press and freezes when the marble clears the opening. Press **R** to restart the same maze or **N** to generate another.
 
 ## How it works
 
