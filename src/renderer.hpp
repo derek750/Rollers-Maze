@@ -8,9 +8,9 @@ class Renderer {
 public:
     Renderer();
     ~Renderer();
-    void draw(const Maze&, Point marble, const Mat4& board, int width, int height);
+    void draw(const Maze&, Point marble, const Mat4& board, const Mat4& spin, int width, int height);
 private:
     Mesh cube, sphere;
     GLuint program;
-    GLint model, color, viewProjection;
+    GLint model, color, striped, viewProjection;
 };

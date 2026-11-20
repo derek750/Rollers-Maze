@@ -11,11 +11,13 @@
 #include <stdexcept>
 
 static void run(GLFWwindow* window,std::uint32_t seed) {
+    glfwSetInputMode(window,GLFW_STICKY_KEYS,GLFW_TRUE);
     Renderer renderer;
     Maze maze=generateMaze(seed);
     std::mt19937 seeds(std::random_device{}());
-    auto title=[&] { glfwSetWindowTitle(window,("Rollers Maze  |  Seed "+std::to_string(seed)).c_str()); };
-    title();
+    double elapsed=0, nextTitle=0;
+    bool started=false;
+    Mat4 spin=identity();
     bool newHeld=false;
     Marble ball{maze.start,{}};
     ExitState exit;
@@ -36,14 +38,15 @@ static void run(GLFWwindow* window,std::uint32_t seed) {
             Maze candidate;
             do { seed=seeds(); candidate=generateMaze(seed); } while (candidate.cells==maze.cells);
             maze=std::move(candidate);
-            title();
         }
         if (newRound || (reset && !resetHeld)) {
             ball={maze.start,{}};
             exit={}; clock={}; tilt={}; dragging=false; last=now;
+            started=false; elapsed=0; nextTitle=0; spin=identity();
         }
         resetHeld=reset;
         bool held=glfwGetMouseButton(window,GLFW_MOUSE_BUTTON_LEFT)==GLFW_PRESS;
+        if (held) started=true;
         if (held && !dragging) {
             originX=x; originY=y; anchor=tilt;
         }
@@ -57,12 +60,28 @@ static void run(GLFWwindow* window,std::uint32_t seed) {
                 tilt.pitch*=std::exp(-8*dt);
                 tilt.roll*=std::exp(-8*dt);
             }
+            if (exit.won) return;
+            if (started) elapsed+=dt;
+            Point before=ball.position;
             stepMaze(maze,ball,downhill(boardRotation(tilt)),dt,exit);
+            Point movement=ball.position-before;
+            float distance=std::sqrt(dot(movement,movement));
+            if (distance>1e-7f) {
+                Vec3 axis{movement.z/distance,0,-movement.x/distance};
+                spin=rotation(distance/marbleRadius,axis)*spin;
+            }
         });
+        if (now>=nextTitle) {
+            char title[180];
+            std::snprintf(title,sizeof(title),"Rollers Maze  |  %s%.1f s  |  Seed %u  |  Drag to tilt   R restart   N new",
+                          exit.won ? "Escaped!  " : "",elapsed,seed);
+            glfwSetWindowTitle(window,title);
+            nextTitle=now+.1;
+        }
         last=now;
         int w,h;
         glfwGetFramebufferSize(window,&w,&h);
-        renderer.draw(maze,ball.position,boardRotation(tilt),w,h);
+        renderer.draw(maze,ball.position,boardRotation(tilt),spin,w,h);
         glfwSwapBuffers(window);
     }
 }

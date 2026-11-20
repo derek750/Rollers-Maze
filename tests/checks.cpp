@@ -78,7 +78,43 @@ void generationChecks() {
         check(reached==cellCount && gates==1 && depth[m.exitCell]==farthest,"maze topology");
     }
 }
+// Follow cell centers using only legal tilts and the production simulation.
+void playThrough(unsigned seed) {
+    Maze maze=generateMaze(seed);
+    std::array<int,cellCount> parent;
+    parent.fill(-1);
+    std::queue<int> q;
+    q.push(maze.startCell);
+    parent[maze.startCell]=maze.startCell;
+    while (!q.empty()) {
+        int cell=q.front(); q.pop();
+        for (int d=0;d<4;++d) {
+            int next=neighbor(cell,d);
+            if (next<0 || parent[next]>=0 || (maze.cells[cell]&(1<<d))) continue;
+            parent[next]=cell; q.push(next);
+        }
+    }
+    std::vector<Point> route;
+    for (int c=maze.exitCell;c!=maze.startCell;c=parent[c]) route.push_back(cellCenter(c));
+    std::reverse(route.begin(),route.end());
+    route.push_back(maze.goal.center);
+    Marble ball{maze.start,{}};
+    ExitState exit;
+    for (Point target : route) {
+        bool arrived=false;
+        for (int tick=0;tick<1200 && !arrived && !exit.won;++tick) {
+            Point error=target-ball.position;
+            Point drive=error*8-ball.velocity*5;
+            Tilt tilt{std::clamp(drive.z/24,-maxTilt,maxTilt),
+                      std::clamp(-drive.x/24,-maxTilt,maxTilt)};
+            stepMaze(maze,ball,downhill(boardRotation(tilt)),fixedStep,exit);
+            arrived=dot(error,error)<.0025f;
+        }
+        check(arrived || exit.won,"route blocked by physical geometry");
+    }
+    check(exit.won,"physical playthrough did not finish");
+}
 int main() {
-    try { motionChecks(); contactChecks(); generationChecks(); }
+    try { motionChecks(); contactChecks(); generationChecks(); for (unsigned seed : {0u,42u,197u,2026u}) playThrough(seed); }
     catch(const std::exception& e) { std::cerr<<e.what()<<'\n'; return 1; }
 }

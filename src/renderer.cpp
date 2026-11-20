@@ -53,18 +53,26 @@ Renderer::Renderer() : cube(cubeMesh()), sphere(sphereMesh()) {
 layout(location=0) in vec3 pos;
 layout(location=1) in vec3 normal;
 uniform mat4 model, vp;
-out vec3 n;
+out vec3 n, localNormal;
 void main(){
+    localNormal=normal;
     n=transpose(inverse(mat3(model)))*normal;
     gl_Position=vp*model*vec4(pos,1);
 })",R"(#version 330 core
-in vec3 n;
+in vec3 n, localNormal;
+uniform bool striped;
 uniform vec3 tint;
 out vec4 frag;
 void main(){
     float light=max(dot(normalize(n),normalize(vec3(-.5,.95,.48))),0.);
-    frag=vec4(tint*(.55+.45*light),1);
+    vec3 pigment=tint;
+    if (striped) {
+        float band=abs(dot(normalize(localNormal),normalize(vec3(.5,1,.25))));
+        pigment=mix(vec3(1,.84,.56),tint,smoothstep(.09,.15,band));
+    }
+    frag=vec4(pigment*(.55+.45*light),1);
 })");
+    striped=glGetUniformLocation(program,"striped");
     model=glGetUniformLocation(program,"model");
     color=glGetUniformLocation(program,"tint");
     viewProjection=glGetUniformLocation(program,"vp");
@@ -77,7 +85,7 @@ Renderer::~Renderer() {
     }
     glDeleteProgram(program);
 }
-void Renderer::draw(const Maze& maze, Point marble, const Mat4& board, int w, int h) {
+void Renderer::draw(const Maze& maze, Point marble, const Mat4& board, const Mat4& spin, int w, int h) {
     if (w<=0 || h<=0) return;
     glViewport(0,0,w,h);
     glClearColor(.045f,.078f,.10f,1);
@@ -94,6 +102,7 @@ void Renderer::draw(const Maze& maze, Point marble, const Mat4& board, int w, in
         glBindVertexArray(mesh.vao);
         glDrawArrays(GL_TRIANGLES,0,mesh.count);
     };
+    glUniform1i(striped,0);
     auto box=[&](Box b,float bottom,float height,Vec3 tint) {
         drawMesh(cube,translation(Vec3{b.center.x,bottom+height/2,b.center.z})*
                  scaling(Vec3{2*b.half.x,height,2*b.half.z}),tint);
@@ -102,6 +111,7 @@ void Renderer::draw(const Maze& maze, Point marble, const Mat4& board, int w, in
     box(maze.goal,-.32f,.325f,Vec3{.12f,.78f,.61f});
     box({maze.start,{.48f,.48f}},0,.012f,Vec3{.26f,.54f,.64f});
     for (auto wall : maze.walls) box(wall,0,.42f,Vec3{.19f,.34f,.39f});
-    drawMesh(sphere,translation(Vec3{marble.x,marbleRadius+.012f,marble.z})*
+    glUniform1i(striped,1);
+    drawMesh(sphere,translation(Vec3{marble.x,marbleRadius+.012f,marble.z})*spin*
              scaling(Vec3{marbleRadius,marbleRadius,marbleRadius}),Vec3{1,.39f,.14f});
 }
