@@ -1,4 +1,5 @@
 #include "renderer.hpp"
+#include "physics.hpp"
 #include "gl.hpp"
 #include <GLFW/glfw3.h>
 #include <algorithm>
@@ -8,12 +9,36 @@
 static void run(GLFWwindow* window) {
     Renderer renderer;
     Maze maze=fixedMaze();
+    Marble ball{maze.start,{}};
+    Clock clock;
+    Tilt tilt{}, anchor{};
+    bool dragging=false;
+    double originX=0, originY=0, last=glfwGetTime();
     while (!glfwWindowShouldClose(window)) {
+        glfwPollEvents();
+        double now=glfwGetTime(), x,y;
+        glfwGetCursorPos(window,&x,&y);
+        bool held=glfwGetMouseButton(window,GLFW_MOUSE_BUTTON_LEFT)==GLFW_PRESS;
+        if (held && !dragging) {
+            originX=x; originY=y; anchor=tilt;
+        }
+        dragging=held;
+        if (held) {
+            tilt.pitch=std::clamp(anchor.pitch+float(y-originY)*.0025f,-maxTilt,maxTilt);
+            tilt.roll=std::clamp(anchor.roll-float(x-originX)*.0025f,-maxTilt,maxTilt);
+        }
+        clock.update(now-last,[&](float dt) {
+            if (!held) {
+                tilt.pitch*=std::exp(-8*dt);
+                tilt.roll*=std::exp(-8*dt);
+            }
+            advance(ball,downhill(boardRotation(tilt)),dt);
+        });
+        last=now;
         int w,h;
         glfwGetFramebufferSize(window,&w,&h);
-        renderer.draw(maze,maze.start,identity(),w,h);
+        renderer.draw(maze,ball.position,boardRotation(tilt),w,h);
         glfwSwapBuffers(window);
-        glfwPollEvents();
     }
 }
 
