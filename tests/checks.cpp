@@ -1,6 +1,7 @@
 #include "physics.hpp"
 #include <stdexcept>
 #include <iostream>
+#include <queue>
 
 void check(bool pass,const char* description) {
     if (!pass) throw std::runtime_error(description);
@@ -49,7 +50,35 @@ void contactChecks() {
     stepMaze(maze,goal,{},fixedStep,exit);
     check(!exit.won,"goal without crossing");
 }
+void generationChecks() {
+    for (unsigned seed=0;seed<1024;++seed) {
+        Maze m=generateMaze(seed), replay=generateMaze(seed);
+        check(m.startCell==replay.startCell && m.cells==replay.cells,"seed replay");
+        std::array<int,cellCount> depth{};
+        depth.fill(-1);
+        std::queue<int> q;
+        q.push(m.startCell); depth[m.startCell]=0;
+        int reached=0, gates=0, farthest=0;
+        while (!q.empty()) {
+            int cell=q.front(); q.pop(); ++reached;
+            for (int d=0;d<4;++d) {
+                int next=neighbor(cell,d);
+                bool closed=m.cells[cell]&(1<<d);
+                if (next<0) {
+                    farthest=std::max(farthest,depth[cell]);
+                    if (!closed) { ++gates; check(cell==m.exitCell,"exit location"); }
+                    continue;
+                }
+                bool shared=m.cells[next]&(1<<((d+2)%4));
+                check(closed==shared,"shared edge mismatch");
+                if (closed || depth[next]>=0) continue;
+                depth[next]=depth[cell]+1; q.push(next);
+            }
+        }
+        check(reached==cellCount && gates==1 && depth[m.exitCell]==farthest,"maze topology");
+    }
+}
 int main() {
-    try { motionChecks(); contactChecks(); }
+    try { motionChecks(); contactChecks(); generationChecks(); }
     catch(const std::exception& e) { std::cerr<<e.what()<<'\n'; return 1; }
 }

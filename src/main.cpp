@@ -3,12 +3,20 @@
 #include "gl.hpp"
 #include <GLFW/glfw3.h>
 #include <algorithm>
+#include <charconv>
+#include <random>
+#include <string>
+#include <string_view>
 #include <cstdio>
 #include <stdexcept>
 
-static void run(GLFWwindow* window) {
+static void run(GLFWwindow* window,std::uint32_t seed) {
     Renderer renderer;
-    Maze maze=fixedMaze();
+    Maze maze=generateMaze(seed);
+    std::mt19937 seeds(std::random_device{}());
+    auto title=[&] { glfwSetWindowTitle(window,("Rollers Maze  |  Seed "+std::to_string(seed)).c_str()); };
+    title();
+    bool newHeld=false;
     Marble ball{maze.start,{}};
     ExitState exit;
     bool resetHeld=false;
@@ -21,7 +29,16 @@ static void run(GLFWwindow* window) {
         double now=glfwGetTime(), x,y;
         glfwGetCursorPos(window,&x,&y);
         bool reset=glfwGetKey(window,GLFW_KEY_R)==GLFW_PRESS;
-        if (reset && !resetHeld) {
+        bool next=glfwGetKey(window,GLFW_KEY_N)==GLFW_PRESS;
+        bool newRound=next && !newHeld;
+        newHeld=next;
+        if (newRound) {
+            Maze candidate;
+            do { seed=seeds(); candidate=generateMaze(seed); } while (candidate.cells==maze.cells);
+            maze=std::move(candidate);
+            title();
+        }
+        if (newRound || (reset && !resetHeld)) {
             ball={maze.start,{}};
             exit={}; clock={}; tilt={}; dragging=false; last=now;
         }
@@ -50,7 +67,18 @@ static void run(GLFWwindow* window) {
     }
 }
 
-int main() {
+int main(int argc,char** argv) {
+    std::uint32_t seed=0;
+    if (argc==1) seed=std::random_device{}();
+    else {
+        std::string_view value=argv[argc-1];
+        auto result=std::from_chars(value.data(),value.data()+value.size(),seed);
+        if (argc!=3 || std::string_view(argv[1])!="--seed" || result.ec!=std::errc{} ||
+            result.ptr!=value.data()+value.size()) {
+            std::fprintf(stderr,"Usage: rollers [--seed 0..4294967295]\n");
+            return 2;
+        }
+    }
     glfwSetErrorCallback([](int, const char* message){ std::fprintf(stderr, "GLFW: %s\n", message); });
     if (!glfwInit()) return 1;
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -66,7 +94,7 @@ int main() {
         try {
             GLenum error = glewInit();
             if (error != GLEW_OK) throw std::runtime_error(reinterpret_cast<const char*>(glewGetErrorString(error)));
-            run(window);
+            run(window,seed);
             status = 0;
         } catch (const std::exception& error) {
             std::fprintf(stderr, "%s\n", error.what());
