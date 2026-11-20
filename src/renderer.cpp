@@ -93,7 +93,8 @@ void Renderer::draw(const Maze& maze, Point marble, const Mat4& board, const Mat
     glUseProgram(program);
     float aspect=float(w)/h;
     float distance=(maze.halfSize+1.3f)/std::min(1.f,aspect);
-    Mat4 vp=perspective(.70f,aspect)*camera(Vec3{0,2.8f,1.48f}*distance);
+    // A 14-degree offset from vertical keeps the near wall faces visible.
+    Mat4 vp=perspective(.70f,aspect)*camera(Vec3{0,3.08f,.77f}*distance);
     glUniformMatrix4fv(viewProjection,1,GL_FALSE,data(vp));
     auto drawMesh=[&](Mesh mesh, Mat4 local, Vec3 tint) {
         Mat4 world=board*local;
