@@ -10,6 +10,8 @@ static void run(GLFWwindow* window) {
     Renderer renderer;
     Maze maze=fixedMaze();
     Marble ball{maze.start,{}};
+    ExitState exit;
+    bool resetHeld=false;
     Clock clock;
     Tilt tilt{}, anchor{};
     bool dragging=false;
@@ -18,6 +20,12 @@ static void run(GLFWwindow* window) {
         glfwPollEvents();
         double now=glfwGetTime(), x,y;
         glfwGetCursorPos(window,&x,&y);
+        bool reset=glfwGetKey(window,GLFW_KEY_R)==GLFW_PRESS;
+        if (reset && !resetHeld) {
+            ball={maze.start,{}};
+            exit={}; clock={}; tilt={}; dragging=false; last=now;
+        }
+        resetHeld=reset;
         bool held=glfwGetMouseButton(window,GLFW_MOUSE_BUTTON_LEFT)==GLFW_PRESS;
         if (held && !dragging) {
             originX=x; originY=y; anchor=tilt;
@@ -32,7 +40,7 @@ static void run(GLFWwindow* window) {
                 tilt.pitch*=std::exp(-8*dt);
                 tilt.roll*=std::exp(-8*dt);
             }
-            advance(ball,downhill(boardRotation(tilt)),dt);
+            stepMaze(maze,ball,downhill(boardRotation(tilt)),dt,exit);
         });
         last=now;
         int w,h;

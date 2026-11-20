@@ -21,3 +21,7 @@ struct Clock {
         }
     }
 };
+
+bool resolveContact(Marble& ball,const Box& wall);
+struct ExitState { bool crossed=false, won=false; };
+void stepMaze(const Maze& maze,Marble& ball,Point acceleration,float dt,ExitState& exit);
